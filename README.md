@@ -1,0 +1,1 @@
+# whooshing.sidecar-ucast-sql-adapter
