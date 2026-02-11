@@ -1,5 +1,5 @@
 import { prisma } from './db'
-import { ucastToPrisma } from '@open-policy-agent/ucast-prisma'
+import { ucastToPrisma } from './translator'
 
 async function runFullTest() {
   console.log("🚀 开始全量测试...");
@@ -21,7 +21,7 @@ async function runFullTest() {
         $self: "TestUser",
         status: "status",
         // 关键点：映射到 JSONB 内部路径
-        role: "metadata.role" 
+        role: "metadata|role" 
       }
     }
   });
@@ -52,7 +52,7 @@ async function runFullTest() {
   const result2 = await prisma.testUser.findMany({
     where: {
       UserStats: {
-        some: where2 // 注意：如果是 1:N 关系，需要用 some 或 every
+        some: where2.UserStats // 提取 originalUcastToPrisma 生成的内容
       }
     }
   });
