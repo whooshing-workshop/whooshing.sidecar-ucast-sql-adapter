@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model FluentMigrations {
+  id        String    @id @db.Uuid
+  name      String    @unique(map: "uq:_fluent_migrations.name")
+  batch     BigInt
+  createdAt DateTime? @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @map("updated_at") @db.Timestamptz(6)
+
+  @@map("fluent_migrations")
+}
+
+model DomainGroupMap {
+  id       String  @id @db.Uuid
+  domainId BigInt  @map("domain_id")
+  groupId  String  @map("group_id") @db.Uuid
+  createAt String  @map("create_at")
+  domains  Domains @relation(fields: [domainId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  groups   Groups  @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([domainId, groupId], map: "domain_group_map.pivot")
+  @@map("domain_group_map")
+}
+
+model DomainPolicies {
+  id       String  @id @db.Uuid
+  domainId BigInt  @map("domain_id")
+  moduleId String  @map("module_id") @db.Uuid
+  policy   String
+  createAt String  @map("create_at")
+  updateAt String  @map("update_at")
+  domains  Domains @relation(fields: [domainId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("domain_policies")
+}
+
+model Domains {
+  id             BigInt           @id
+  name           String?
+  description    String?
+  createAt       String           @map("create_at")
+  updateAt       String           @map("update_at")
+  domainGroupMap DomainGroupMap[]
+  domainPolicies DomainPolicies[]
+  userDomainMap  UserDomainMap[]
+
+  @@map("domains")
+}
+
+model GroupPaths {
+  id                                   String @id @db.Uuid
+  ancestorId                           String @map("ancestor_id") @db.Uuid
+  descendantId                         String @map("descendant_id") @db.Uuid
+  depth                                BigInt
+  groupsGroupPathsAncestorIdTogroups   Groups @relation("group_paths_ancestor_idTogroups", fields: [ancestorId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  groupsGroupPathsDescendantIdTogroups Groups @relation("group_paths_descendant_idTogroups", fields: [descendantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([ancestorId, descendantId], map: "group_paths.unique")
+  @@map("group_paths")
+}
+
+model Groups {
+  id                                       String           @id @db.Uuid
+  parentId                                 String?          @map("parent_id") @db.Uuid
+  name                                     String
+  description                              String?
+  createAt                                 String           @map("create_at")
+  updateAt                                 String           @map("update_at")
+  domainGroupMap                           DomainGroupMap[]
+  groupPathsGroupPathsAncestorIdTogroups   GroupPaths[]     @relation("group_paths_ancestor_idTogroups")
+  groupPathsGroupPathsDescendantIdTogroups GroupPaths[]     @relation("group_paths_descendant_idTogroups")
+  groups                                   Groups?          @relation("groupsTogroups", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  otherGroups                              Groups[]         @relation("groupsTogroups")
+  roleGroupMap                             RoleGroupMap[]
+  userGroupMap                             UserGroupMap[]
+
+  @@map("groups")
+}
+
+model RoleGroupMap {
+  id       String @id @db.Uuid
+  roleId   BigInt @map("role_id")
+  groupId  String @map("group_id") @db.Uuid
+  createAt String @map("create_at")
+  groups   Groups @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles    Roles  @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([roleId, groupId], map: "role_group_map.pivot")
+  @@map("role_group_map")
+}
+
+model RolePolicies {
+  id       String @id @db.Uuid
+  roleId   BigInt @map("role_id")
+  moduleId String @map("module_id") @db.Uuid
+  policy   String
+  createAt String @map("create_at")
+  updateAt String @map("update_at")
+  roles    Roles  @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("role_policies")
+}
+
+model RoleUserInGroupMap {
+  id            String       @id @db.Uuid
+  roleId        BigInt       @map("role_id")
+  userInGroupId String       @map("user_in_group_id") @db.Uuid
+  createAt      String       @map("create_at")
+  roles         Roles        @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  userGroupMap  UserGroupMap @relation(fields: [userInGroupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([roleId, userInGroupId], map: "role_user_in_group_map.pivot")
+  @@map("role_user_in_group_map")
+}
+
+model Roles {
+  id                 BigInt               @id
+  name               String
+  description        String?
+  createAt           String               @map("create_at")
+  updateAt           String               @map("update_at")
+  roleGroupMap       RoleGroupMap[]
+  rolePolicies       RolePolicies[]
+  roleUserInGroupMap RoleUserInGroupMap[]
+  userRoleMap        UserRoleMap[]
+
+  @@map("roles")
+}
+
+model Tokens {
+  id          String  @id @db.Uuid
+  userId      String  @unique(map: "uq:tokens.user_id") @map("user_id") @db.Uuid
+  credential  String  @unique(map: "uq:tokens.credential")
+  token       String  @unique(map: "uq:tokens.token")
+  valid       Boolean @default(true)
+  expireAfter BigInt  @map("expire_after")
+  createAt    String  @map("create_at")
+  users       Users   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("tokens")
+}
+
+model UserDomainMap {
+  id       String  @id @db.Uuid
+  userId   String  @map("user_id") @db.Uuid
+  domainId BigInt  @map("domain_id")
+  createAt String  @map("create_at")
+  domains  Domains @relation(fields: [domainId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users    Users   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, domainId], map: "user_domain_map.pivot")
+  @@map("user_domain_map")
+}
+
+model UserGroupMap {
+  id                 String               @id @db.Uuid
+  userId             String               @map("user_id") @db.Uuid
+  groupId            String               @map("group_id") @db.Uuid
+  createAt           String               @map("create_at")
+  roleUserInGroupMap RoleUserInGroupMap[]
+  groups             Groups               @relation(fields: [groupId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              Users                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, groupId], map: "user_group_map.pivot")
+  @@map("user_group_map")
+}
+
+model UserInfoAddresses {
+  id          String    @id @db.Uuid
+  userInfoId  String    @unique(map: "uq:user_info_addresses.user_info_id") @map("user_info_id") @db.Uuid
+  address     String
+  order       Int       @db.SmallInt
+  description String?
+  createAt    String    @map("create_at")
+  updateAt    String    @map("update_at")
+  userInfos   UserInfos @relation(fields: [userInfoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_info_addresses")
+}
+
+model UserInfoAlternateEmails {
+  id             String    @id @db.Uuid
+  userInfoId     String    @unique(map: "uq:user_info_alternate_emails.user_info_id") @map("user_info_id") @db.Uuid
+  alternateEmail String    @map("alternate_email")
+  order          Int       @db.SmallInt
+  description    String?
+  createAt       String    @map("create_at")
+  updateAt       String    @map("update_at")
+  userInfos      UserInfos @relation(fields: [userInfoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_info_alternate_emails")
+}
+
+model UserInfoPhones {
+  id          String    @id @db.Uuid
+  userInfoId  String    @unique(map: "uq:user_info_phones.user_info_id") @map("user_info_id") @db.Uuid
+  phone       String
+  order       Int       @db.SmallInt
+  description String?
+  createAt    String    @map("create_at")
+  updateAt    String    @map("update_at")
+  userInfos   UserInfos @relation(fields: [userInfoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_info_phones")
+}
+
+model UserInfos {
+  id                      String                   @id @db.Uuid
+  userId                  String                   @unique(map: "uq:user_infos.user_id") @map("user_id") @db.Uuid
+  idNumber                String                   @unique(map: "uq:user_infos.id_number") @map("id_number")
+  birthday                DateTime                 @db.Date
+  other                   String?
+  createAt                String                   @map("create_at")
+  updateAt                String                   @map("update_at")
+  userInfoAddresses       UserInfoAddresses?
+  userInfoAlternateEmails UserInfoAlternateEmails?
+  userInfoPhones          UserInfoPhones?
+  users                   Users                    @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("user_infos")
+}
+
+model UserRoleMap {
+  id       String @id @db.Uuid
+  userId   String @map("user_id") @db.Uuid
+  roleId   BigInt @map("role_id")
+  createAt String @map("create_at")
+  roles    Roles  @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users    Users  @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([userId, roleId], map: "user_role_map.pivot")
+  @@map("user_role_map")
+}
+
+model Users {
+  id            String          @id @db.Uuid
+  email         String          @unique(map: "uq:users.email")
+  hashedPasswd  String          @map("hashed_passwd")
+  key           Bytes
+  salt          Bytes
+  createAt      String          @map("create_at")
+  updateAt      String          @map("update_at")
+  tokens        Tokens?
+  userDomainMap UserDomainMap[]
+  userGroupMap  UserGroupMap[]
+  userInfos     UserInfos?
+  userRoleMap   UserRoleMap[]
+
+  @@map("users")
+}
